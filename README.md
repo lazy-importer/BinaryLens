@@ -1,5 +1,5 @@
 # BinaryLens
-BinaryLens is an IDA plugin that speeds up binary analysis by renaming all functions and summarizing the binary’s behavior. It also analyzes individual functions by renaming their local variables and providing a behavior summary. It’s blazing fast and accurate compared to other tools out there. Here is a simple example of the results:
+BinaryLens is an IDA plugin that speeds up binary analysis by using language models to rename all functions in a binary, explain binaries, analyze individual functions, rename variables, and more. It’s blazing fast and accurate compared to other tools out there. Here’s a simple example of the results:
 
 ![](imgs/showcase.gif?raw=true)
 
