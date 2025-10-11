@@ -18,11 +18,9 @@ You can start the binary analysis through the **Edit** menu (**BinaryLens** → 
 ## Supported models
 [OpenAI](https://platform.openai.com/docs/models)
 - GPT-5
-- GPT-5-mini
 
 [Google Gemini](https://ai.google.dev/gemini-api/docs)
 - **Gemini-2.5-pro (recommended)**
-- Gemini-2.5-flash
 
 [Deepseek](https://api-docs.deepseek.com/quick_start/pricing)
 - Deepseek-chat
