@@ -20,7 +20,7 @@ You can start the binary analysis through the **Edit** menu (**BinaryLens** → 
 - GPT-5
 
 [Google Gemini](https://ai.google.dev/gemini-api/docs)
-- **Gemini-2.5-pro (recommended)**
+- Gemini-2.5-pro (recommended)
 
 [Deepseek](https://api-docs.deepseek.com/quick_start/pricing)
 - Deepseek-chat
