@@ -30,4 +30,4 @@ You need to link **OpenSSL** and **IDA’s SDK** in Visual Studio’s project se
 
 ## Compatibility
 The plugin requires access to the Hex-Rays decompiler to function.
-Tested on Windows 10 with IDA 9.1 Pro. Mainly tested on x86 binaries but should also work with other architectures.
+Tested on Windows 10/11 with IDA 9.1 Pro. Mainly tested on x86 binaries but should also work with other architectures.
