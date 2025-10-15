@@ -43,15 +43,11 @@ bool IsSubPresentInBin() {
             return false;
         }
 
-		// Skip previously failed funcs
-        if (std::find(failed_func_names.begin(), failed_func_names.end(), func_name.c_str()) != failed_func_names.end()) {
-            continue;
-        }
+        if (std::find(failed_func_names.begin(), failed_func_names.end(), func_name.c_str()) != failed_func_names.end()) continue;
+        
 
-        // Check if the funcs name starts with sub_
-        if (qstrncmp(func_name.c_str(), "sub_", 4) == 0) {
-            return true;
-        }
+        if (qstrncmp(func_name.c_str(), "sub_", 4) == 0) return true;
+     
 
         continue;
     }
@@ -79,7 +75,6 @@ std::string GetAllSubs() {
             return std::string();
         }
 
-        // We don't want to give all functions, just the subs and main functions
         if (qstrncmp(func_name.c_str(), "sub_", 4) != 0 &&
             qstrncmp(func_name.c_str(), "main", 4) != 0 &&
             qstrncmp(func_name.c_str(), "WinMain", 7) != 0 &&
@@ -138,7 +133,6 @@ bool RenameSubsFromFile(std::string& renamed_funcs_path, int* renamed_sub_count)
             continue;
         }
 
-        // Skip if the funcs name doesn't start with sub_
         if (qstrncmp(func_name.c_str(), "sub_", 4) != 0) {
             continue;
         }
@@ -212,8 +206,7 @@ bool RenameVariablesFromFile(std::string renamed_vars_path, VarRenameContext ren
 }
 
 /*
-* The execute() func is invoked via execute_sync() to run in the main thread once the HTTP response is received.
-* This approach is necessary because IDA's API functions are not thread safe and must be called from the main thread.
+* just ida issues
 */
 class RenameSubs : public exec_request_t {
 public:
@@ -242,7 +235,6 @@ public:
 
         std::string renamed_subs_path = temp_file_path;
 
-        // Save the server response to a temp file so it can be read without parsing
         if (!SaveFileContent(renamed_subs_path, model_response)) {
             LogMessage(LOG_PATH, 3, "ERROR: SaveFileContent failed!\n");
             sub_ren_pass_count = 0;
@@ -275,7 +267,6 @@ public:
             bin_summary = buffer;
         }
 
-		// Retry renaming one more time if there are still subs left. The models sometimes miss a few subs.
         if (sub_ren_pass_count == 1) {
             if (IsSubPresentInBin()) {
                 LogMessage(LOG_PATH, 1, "Starting second pass to rename remaining functions...\n");
@@ -304,115 +295,81 @@ bool RenameAllSubs() {
     sub_rename_end = false;
     sub_ren_pass_count++;
 
-    if (sub_ren_pass_count == 1) {
-        LogMessage(LOG_PATH, 1, "[BinaryLens] Function renaming started. This may take a few minutes, please wait...\n");
-    }
+    if (sub_ren_pass_count == 1)
+        LogMessage(LOG_PATH, 1, "[BinaryLens] Function renaming started...\n");
 
     std::string subs = GetAllSubs();
     if (subs.empty()) {
-        LogMessage(LOG_PATH, 3, "ERROR: No subroutines were found in the binary.\n");
+        LogMessage(LOG_PATH, 3, "ERROR: No subroutines found.\n");
         sub_rename_end = true;
         sub_ren_pass_count = 0;
         return false;
     }
 
     static qstring user_message;
-
     if (sub_ren_pass_count == 1) {
         size_t max_size = 250;
-        if (!ask_text(&user_message, max_size, nullptr, "Provide information about the binary or what you're searching for (optional):")) {
+        if (!ask_text(&user_message, max_size, nullptr, "Optional binary info:"))
             user_message = "";
-        }
     }
 
     std::string message = std::string(user_message.c_str());
 
-    // Send the HTTP request in a thread to avoid freezing IDA
     std::thread([subs, message]() {
-        std::string api_key;
-        std::string model_to_use;
+        std::string api_key, model_to_use, provider;
 
         if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "model_to_use", model_to_use)) {
-            ThreadLogMessage(LOG_PATH, 3, "Please select a model in order to proceed with the subroutine renaming.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model.\n");
+            ThreadLogMessage(LOG_PATH, 3, "Please select a model first.\n");
             sub_rename_end = true;
             sub_ren_pass_count = 0;
             return;
         }
+        ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "model_provider", provider);
 
-        ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Using model: %s\n", model_to_use.c_str());
-
-        if (ContainsSubstring(model_to_use, "gemini")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "gemini_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (Gemini). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/Gemini/Set API key.\n");
-                sub_rename_end = true;
-                sub_ren_pass_count = 0;
-                return;
-            }
+        if (provider == "openrouter") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openrouter_api_key", api_key)) goto no_key;
         }
-        else if (ContainsSubstring(model_to_use, "deepseek")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "deepseek_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (deepseek). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/deepseek/Set API key.\n");
-                sub_rename_end = true;
-                sub_ren_pass_count = 0;
-                return;
-            }
+        else if (provider == "gemini") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "gemini_api_key", api_key)) goto no_key;
         }
-        else if (ContainsSubstring(model_to_use, "gpt")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openai_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (OpenAI). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/OpenAI/Set API key.\n");
-                sub_rename_end = true;
-                sub_ren_pass_count = 0;
-                return;
-            }
+        else if (provider == "deepseek") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "deepseek_api_key", api_key)) goto no_key;
+        }
+        else if (provider == "openai") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openai_api_key", api_key)) goto no_key;
         }
         else {
-            ThreadLogMessage(LOG_PATH, 3, "Unsupported model: %s\n", model_to_use.c_str());
-            sub_rename_end = true;
-            sub_ren_pass_count = 0;
-            return;
+            ThreadLogMessage(LOG_PATH, 3, "Unsupported model/provider: %s\n", model_to_use.c_str());
+            sub_rename_end = true; sub_ren_pass_count = 0; return;
         }
 
-        LARGE_INTEGER freq, start, stop;
-        QueryPerformanceFrequency(&freq);
+        {
+            LARGE_INTEGER freq, start, stop;
+            QueryPerformanceFrequency(&freq);
+            QueryPerformanceCounter(&start);
 
-        QueryPerformanceCounter(&start);
-        ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Waiting for model response...\n");
+            std::string model_request = "User message:\n" + message + "\n\nDecompiled Functions:\n" + subs;
+            std::string model_response = GetResponseFromModel(model_to_use, api_key, SUB_REN_SYS_PROMPT, model_request);
+            if (model_response.empty()) { sub_rename_end = true; sub_ren_pass_count = 0; return; }
 
-        
-        std::string model_request = "User message: \n" + message + "\n\nDecompiled Functions:\n" + subs;
+            QueryPerformanceCounter(&stop);
+            ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Model response received (%.2f sec)\n", REACTION_TIME(stop, start, freq));
 
-        ThreadLogMessage(LOG_PATH, 0, "\n========== Model Request: ==========\n");
-        ThreadLogMessage(LOG_PATH, 0, "System Prompt:\n%s\n\nUser Prompt\n%s\n", SUB_REN_SYS_PROMPT, model_request.c_str());
-        ThreadLogMessage(LOG_PATH, 0, "====================\n\n");
-
-        std::string model_response = GetResponseFromModel(model_to_use, api_key, SUB_REN_SYS_PROMPT, model_request);
-        if (model_response.empty()) {
-            sub_rename_end = true;
-            sub_ren_pass_count = 0;
-            return;
+            RenameSubs RenameSubs;
+            RenameSubs.model_response = std::move(model_response);
+            execute_sync(RenameSubs, MFF_WRITE);
         }
+        return;
 
-        // Log the model response for debugging
-        ThreadLogMessage(LOG_PATH, 0, "\n========== Model Response: ==========\n");
-        ThreadLogMessage(LOG_PATH, 0, "%s\n", model_response.c_str());
-        ThreadLogMessage(LOG_PATH, 0, "====================\n\n");
-
-        QueryPerformanceCounter(&stop);
-        ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Model response received (took %.2f sec)\n", REACTION_TIME(stop, start, freq));
-
-        RenameSubs RenameSubs;
-        RenameSubs.model_response = std::move(model_response);
-
-        execute_sync(RenameSubs, MFF_WRITE);
+    no_key:
+        ThreadLogMessage(LOG_PATH, 3, "API key not found for %s provider. Please set it.\n", provider.c_str());
+        sub_rename_end = true;
+        sub_ren_pass_count = 0;
         }).detach();
 
     return true;
 }
 
-/*
-* The execute() func is invoked via execute_sync() to run in the main thread once the HTTP response is received.
-* This approach is necessary because IDA's API functions are not thread safe and must be called from the main thread.
-*/
 class RenameVars : public exec_request_t {
 public:
     VarRenameContext rename_context;
@@ -434,13 +391,6 @@ public:
         }
 
         std::string renamed_vars_path = temp_file_path;
-
-        // Save the server response to a temp file so it can be read without parsing
-        if (!SaveFileContent(renamed_vars_path, rename_context.model_response)) {
-            LogMessage(LOG_PATH, 3, "ERROR: SaveFileContent failed!\n");
-            var_rename_end = true;
-            return false;
-        }
 
         int renamed_var_count = 0;
         if (rename_context.rename_vars) {
@@ -465,19 +415,17 @@ public:
             return false;
         }
 
-        if (!set_func_cmt(func, summary.c_str(), false)) {  // Use true for repeatable comment
+        if (!set_func_cmt(func, summary.c_str(), false)) { 
             LogMessage(LOG_PATH, 3, "ERROR: set_func_cmt failed\n");
             var_rename_end = true;
             return false;
         }
 
-        // Refresh pseudocode view
         vdui_t* vdui = open_pseudocode(func->start_ea, OPF_REUSE);
         if (vdui) vdui->refresh_view(true);
 
         LogMessage(LOG_PATH, 1, "[BinaryLens] Successfully set the function summary comment.\n", renamed_var_count);
 
-        // check if the funcs name starts with sub_
         qstring func_name;
         get_func_name(&func_name, func->start_ea);
         if (qstrncmp(func_name.c_str(), "sub_", 4) == 0) {
@@ -491,29 +439,22 @@ public:
 };
 
 bool RenameVariables(TWidget* t_widget) {
-    LogMessage(LOG_PATH, 1, "[BinaryLens] Variable renaming started. This may take a few minutes, please wait...\n");
-
+    LogMessage(LOG_PATH, 1, "[BinaryLens] Variable renaming started...\n");
     var_rename_end = false;
+
     vdui_t* vdui = get_widget_vdui(t_widget);
     lvars_t* temp_lvars = vdui->cfunc->get_lvars();
-    bool rename_vars = true;
-
-	// If there are no local variables, skip renaming
-    if (!temp_lvars || temp_lvars->size() < 1) {
-        rename_vars = false;
-    }
+    bool rename_vars = temp_lvars && temp_lvars->size() > 0;
 
     if (rename_vars) {
-        // Dummy renaming to ensure all variables are listed correctly (IDA bug workaround)
         lvar_t* lvar = &(*temp_lvars)[0];
-        std::string dummy_name = std::string(lvar->name.c_str()) + "_";
-        vdui->rename_lvar(&(*temp_lvars)[0], dummy_name.c_str(), true);
+        vdui->rename_lvar(lvar, (std::string(lvar->name.c_str()) + "_").c_str(), true);
         temp_lvars = vdui->cfunc->get_lvars();
     }
 
     const strvec_t& pseudocode = vdui->cfunc->get_pseudocode();
     if (pseudocode.empty()) {
-        LogMessage(LOG_PATH, 3, "ERROR: No pseudocode available for function\n");
+        LogMessage(LOG_PATH, 3, "ERROR: No pseudocode.\n");
         var_rename_end = true;
         return false;
     }
@@ -528,79 +469,59 @@ bool RenameVariables(TWidget* t_widget) {
 
     ea_t func_ea = vdui->cfunc->entry_ea;
 
-    // Send the HTTP request in a thread to avoid freezing IDA
     std::thread([func = std::move(func), func_ea, rename_vars]() {
-		std::string api_key;
-        std::string model_to_use;
+        std::string api_key, model_to_use, provider;
 
         if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "model_to_use", model_to_use)) {
-            ThreadLogMessage(LOG_PATH, 3, "Please select a model in order to proceed with the variable renaming.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model.\n");
+            ThreadLogMessage(LOG_PATH, 3, "Please select a model first.\n");
             var_rename_end = true;
             return;
         }
+        ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "model_provider", provider);
 
-        ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Using model: %s\n", model_to_use.c_str());
-
-        if (ContainsSubstring(model_to_use, "gemini")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "gemini_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (Gemini). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/Gemini/Set API key.\n");
-                var_rename_end = true;
-                return;
-            }
+        if (provider == "openrouter") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openrouter_api_key", api_key)) goto no_key;
         }
-        else if (ContainsSubstring(model_to_use, "deepseek")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "deepseek_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (deepseek). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/deepseek/Set API key.\n");
-                var_rename_end = true;
-                return;
-            }
+        else if (provider == "gemini") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "gemini_api_key", api_key)) goto no_key;
         }
-        else if (ContainsSubstring(model_to_use, "gpt")) {
-            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openai_api_key", api_key)) {
-                ThreadLogMessage(LOG_PATH, 3, "API key not found for the selected model (OpenAI). Please set it before proceeding.\n\nYou can do this by navigating to Edit/BinaryLens/Select Model/OpenAI/Set API key.\n");
-                var_rename_end = true;
-                return;
-            }
+        else if (provider == "deepseek") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "deepseek_api_key", api_key)) goto no_key;
+        }
+        else if (provider == "openai") {
+            if (!ReadRegistryData("SOFTWARE\\BinaryLensPlugin", "openai_api_key", api_key)) goto no_key;
         }
         else {
-            ThreadLogMessage(LOG_PATH, 3, "Unsupported model: %s\n", model_to_use.c_str());
+            ThreadLogMessage(LOG_PATH, 3, "Unsupported provider.\n");
             var_rename_end = true;
             return;
         }
 
-        LARGE_INTEGER freq, start, stop;
-        QueryPerformanceFrequency(&freq);
+        {
+            LARGE_INTEGER freq, start, stop;
+            QueryPerformanceFrequency(&freq);
+            QueryPerformanceCounter(&start);
 
-        QueryPerformanceCounter(&start);
-        ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Waiting for model response...\n");
+            std::string model_response = GetResponseFromModel(model_to_use, api_key, VAR_REN_SYS_PROMPT, func);
+            if (model_response.empty()) { var_rename_end = true; return; }
 
-        ThreadLogMessage(LOG_PATH, 0, "\n========== Model Request: ==========\n");
-        ThreadLogMessage(LOG_PATH, 0, "System Prompt:\n%s\n\nUser Prompt\n%s\n", VAR_REN_SYS_PROMPT, func.c_str());
-        ThreadLogMessage(LOG_PATH, 0, "====================\n\n");
+            QueryPerformanceCounter(&stop);
+            ThreadLogMessage(LOG_PATH, 1, "[BinaryLens] Model response received (%.2f sec)\n", REACTION_TIME(stop, start, freq));
 
-        std::string model_response = GetResponseFromModel(model_to_use, api_key, VAR_REN_SYS_PROMPT, func);
-        if (model_response.empty()) {
-			var_rename_end = true;
-            return;
+            VarRenameContext ctx;
+            ctx.func_ea = func_ea;
+            ctx.model_response = std::move(model_response);
+            ctx.rename_vars = rename_vars;
+
+            RenameVars RenameVars;
+            RenameVars.rename_context = std::move(ctx);
+            execute_sync(RenameVars, MFF_WRITE);
         }
+        return;
 
-        // Log the model response for debugging
-        ThreadLogMessage(LOG_PATH, 0, "\n========== Model Response: ==========\n");
-        ThreadLogMessage(LOG_PATH, 0, "%s\n", model_response.c_str());
-        ThreadLogMessage(LOG_PATH, 0, "====================\n\n");
-
-        QueryPerformanceCounter(&stop);
-        ThreadLogMessage(LOG_PATH, true, "[BinaryLens] Model response received (took %.2f sec)\n", REACTION_TIME(stop, start, freq));
-
-        VarRenameContext rename_context;
-        rename_context.func_ea = func_ea;
-        rename_context.model_response = std::move(model_response);
-        rename_context.rename_vars = rename_vars;
-
-        RenameVars RenameVars;
-        RenameVars.rename_context = std::move(rename_context);
-
-        execute_sync(RenameVars, MFF_WRITE);
+    no_key:
+        ThreadLogMessage(LOG_PATH, 3, "API key not found for %s provider.\n", provider.c_str());
+        var_rename_end = true;
         }).detach();
 
     return true;

@@ -134,7 +134,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
@@ -143,7 +143,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>C:\idasdk91\idasdk91\include;C:\OpenSSL-Win64\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\ida-sdk-92\src\include;C:\OpenSSL-Win64\include</AdditionalIncludeDirectories>
       <LanguageStandard>Default</LanguageStandard>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
@@ -151,7 +151,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>C:\idasdk91\idasdk91\lib\x64_win_vc_64\ida.lib;C:\OpenSSL-Win64\lib\VC\x64\MD\libssl.lib;C:\OpenSSL-Win64\lib\VC\x64\MD\libcrypto.lib</AdditionalDependencies>
+      <AdditionalDependencies>C:\ida-sdk-92\src\lib\x64_win_vc_64\ida.lib;C:\Users\phantom\vcpkg\installed\x64-windows\lib\libssl.lib;C:\Users\phantom\vcpkg\installed\x64-windows\lib\libcrypto.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
