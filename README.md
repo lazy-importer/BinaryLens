@@ -25,6 +25,9 @@ You can start the binary analysis through the **Edit** menu (**BinaryLens** → 
 [Deepseek](https://api-docs.deepseek.com/quick_start/pricing)
 - Deepseek-chat
 
+[Open Router](https://openrouter.ai/docs/quickstart)
+- google/gemini-2.0-flash-exp ( can be changed ) 
+
 ## Compiling the source code
 You need to link **OpenSSL** and **IDA’s SDK** in Visual Studio’s project settings. The necessary paths are already included, you just need to replace them with your own paths. Also make sure to compile the project in x64.
 
