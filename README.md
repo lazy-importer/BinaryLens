@@ -28,6 +28,10 @@ You can start the binary analysis through the **Edit** menu (**BinaryLens** → 
 ## Compiling the source code
 You need to link **OpenSSL** and **IDA’s SDK** in Visual Studio’s project settings. The necessary paths are already included, you just need to replace them with your own paths. Also make sure to compile the project in x64.
 
+## New features
+- Open router Provider
+- Better model handling 
+
 ## Compatibility
 The plugin requires access to the Hex-Rays decompiler to function.
 Tested on Windows 10/11 with IDA 9.1 Pro. Mainly tested on x86 binaries but should also work with other architectures.
